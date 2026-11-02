@@ -5,3 +5,4 @@ unknown prefix is a patch 1793647528177209841
 feat!: rename command 1793647541203875015
 fix: override via comment 1793647554201275257
 fix: legacy comment prefix 1793647571608388821
+fix: pinned version 1793647586276517503
