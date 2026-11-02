@@ -1,3 +1,4 @@
 fix: handle empty input 1793633333271657322
 feat: add export 1793633345412244234
 docs: explain export 1793633358405100774
+feat(api)!: remove v1 endpoint 1793633370228029846
