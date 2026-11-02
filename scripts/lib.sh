@@ -8,6 +8,8 @@ set -euo pipefail
 # holds this tooling and is never reset.
 SANDBOX_BRANCH="${SANDBOX_BRANCH:-sandbox}"
 SANDBOX_DIR="${SANDBOX_DIR:-$PWD/.sandbox}"
+# Identity of every commit the scenarios make; reset.sh uses it to find its own branches.
+SCENARIO_EMAIL="relctl-e2e@users.noreply.github.com"
 
 log()  { echo "[e2e] $*" >&2; }
 fail() { echo "[e2e] FAIL: $*" >&2; exit 1; }
@@ -42,7 +44,7 @@ require_env() {
 # configure_git sets the committer used in the sandbox.
 configure_git() {
   git config --global user.name "relctl-e2e"
-  git config --global user.email "relctl-e2e@users.noreply.github.com"
+  git config --global user.email "$SCENARIO_EMAIL"
 }
 
 remote_url() {
