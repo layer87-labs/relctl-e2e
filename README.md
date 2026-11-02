@@ -34,6 +34,7 @@ scenarios/            one script per flow
 | `40-changelog` | Flow 3: version and notes from `CHANGELOG.md`, undated heading refused, idempotent release |
 | `60-release-candidates` | Flow 3 on a development branch: `--prerelease` numbers `1.0.0-rc.1…3` (marked as prerelease), the release, `latest` is the release, no candidate for an already released version |
 | `70-release-gate` | `relctl release gate`: fails for undated headings, without a candidate for the commit, for a candidate of another commit and for an already released version; passes when everything fits |
+| `80-tag-commit` | the release tag points to the merge commit the version was computed from, even if another commit lands before `release publish` |
 | `50-awesome-ci-compat` | `RELCTL_LEGACY_ACI_ENV=true` exports `ACI_*` aliases, and not without the switch |
 
 ## Running
