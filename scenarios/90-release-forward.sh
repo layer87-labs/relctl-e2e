@@ -14,7 +14,8 @@ forward() { (cd "$SANDBOX_DIR" && relctl release forward --from "$SANDBOX_BRANCH
 branch_sha() { gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/$1" --jq .object.sha; }
 
 # development branch starts at the seed commit
-git -C "$SANDBOX_DIR" push --quiet origin "HEAD:refs/heads/dev"
+# dev belongs to this scenario: a leftover from an earlier run is overwritten
+git -C "$SANDBOX_DIR" push --quiet --force origin "HEAD:refs/heads/dev"
 seed="$(branch_sha dev)"
 
 # 1. identical: nothing to do
@@ -41,7 +42,8 @@ git -C "$SANDBOX_DIR" checkout --quiet -B dev-work origin/dev
 echo "dev change" >> "$SANDBOX_DIR/dev.txt"
 git -C "$SANDBOX_DIR" add dev.txt
 git -C "$SANDBOX_DIR" commit --quiet -m "feat: work on dev"
-git -C "$SANDBOX_DIR" push --quiet origin "HEAD:refs/heads/dev"
+# dev belongs to this scenario: a leftover from an earlier run is overwritten
+git -C "$SANDBOX_DIR" push --quiet --force origin "HEAD:refs/heads/dev"
 open_and_merge "fix/released-2" "fix: second released change"
 out=$(forward) || { echo "$out" >&2; fail "forward of diverged branches failed"; }
 assert_match "$out" "Opened pull request #[0-9]+" "diverged branches open a pull request"
