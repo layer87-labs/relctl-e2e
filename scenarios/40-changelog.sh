@@ -38,12 +38,19 @@ body=$(gh api "repos/${GITHUB_REPOSITORY}/releases/$id" --jq .body)
 assert_match "$body" "first release notes" "release notes come from the changelog"
 
 # 3. running again creates nothing new while the release is still a draft
+wait_release_listed 1.0.0 true
 create > /dev/null || fail "second run must succeed"
+settle
+if [ "$(release_count 1.0.0)" != "1" ]; then dump_releases; fi
 assert_eq "$(release_count 1.0.0)" "1" "releases for 1.0.0 after a repeated run"
 
 # 4. publish, then run again: still nothing new
 (cd "$SANDBOX_DIR" && relctl release publish --release-id "$id" --release-branch "$SANDBOX_BRANCH" > /dev/null)
 sandbox_sync
+wait_release_listed 1.0.0 false
 create > /dev/null || fail "run after publishing must succeed"
-assert_eq "$(release_count 1.0.0)" "1" "releases for 1.0.0 after publishing and a repeated run"
+settle
+count=$(release_count 1.0.0)
+if [ "$count" != "1" ]; then dump_releases; fi
+assert_eq "$count" "1" "releases for 1.0.0 after publishing and a repeated run"
 log "changelog scenario passed"

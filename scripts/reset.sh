@@ -29,12 +29,19 @@ for ref in $(gh api "repos/$repo/git/matching-refs/tags" --paginate --jq '.[].re
   gh api -X DELETE "repos/$repo/git/$ref" > /dev/null
 done
 
-log "deleting topic branches"
+log "deleting leftover scenario branches"
+# Only branches whose tip commit was made by the scenarios (committer identity
+# below) are deleted. Tooling branches such as fix/... for pull requests to main
+# are never touched.
+scenario_email="$SCENARIO_EMAIL"
 for b in $(gh api "repos/$repo/branches" --paginate --jq '.[].name'); do
   case "$b" in
-    main|"$SANDBOX_BRANCH") ;;
-    *) gh api -X DELETE "repos/$repo/git/refs/heads/$b" > /dev/null || true ;;
+    main|"$SANDBOX_BRANCH") continue ;;
   esac
+  email=$(gh api "repos/$repo/branches/$b" --jq '.commit.commit.author.email' 2>/dev/null || true)
+  if [ "$email" = "$scenario_email" ]; then
+    gh api -X DELETE "repos/$repo/git/refs/heads/$b" > /dev/null || true
+  fi
 done
 
 log "recreating $SANDBOX_BRANCH from a seed commit"

@@ -8,6 +8,8 @@ set -euo pipefail
 # holds this tooling and is never reset.
 SANDBOX_BRANCH="${SANDBOX_BRANCH:-sandbox}"
 SANDBOX_DIR="${SANDBOX_DIR:-$PWD/.sandbox}"
+# Identity of every commit the scenarios make; reset.sh uses it to find its own branches.
+SCENARIO_EMAIL="relctl-e2e@users.noreply.github.com"
 
 log()  { echo "[e2e] $*" >&2; }
 fail() { echo "[e2e] FAIL: $*" >&2; exit 1; }
@@ -42,7 +44,7 @@ require_env() {
 # configure_git sets the committer used in the sandbox.
 configure_git() {
   git config --global user.name "relctl-e2e"
-  git config --global user.email "relctl-e2e@users.noreply.github.com"
+  git config --global user.email "$SCENARIO_EMAIL"
 }
 
 remote_url() {
@@ -119,3 +121,31 @@ release_count() {
   gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq "[.[] | select(.tag_name == \"$1\")] | length" \
     | awk '{s+=$1} END {print s+0}'
 }
+
+# dump_releases prints all releases (draft or published) for diagnosis.
+dump_releases() {
+  gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+    --jq '.[] | "id=\(.id) tag=\(.tag_name) draft=\(.draft) created=\(.created_at)"' >&2 || true
+}
+
+# wait_release_listed <tag> <draft: true|false>
+# GitHub's release listing is eventually consistent for a few seconds after a release
+# is created or published, and relctl's idempotency check reads that listing. Wait until
+# the listing shows the expected state before the next relctl run, so that the test
+# checks relctl and not the propagation delay.
+wait_release_listed() {
+  local tag="$1" draft="$2" i n
+  for i in $(seq 1 20); do
+    n=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+      --jq "[.[] | select(.tag_name == \"$tag\" and .draft == $draft)] | length" | awk '{s+=$1} END {print s+0}')
+    if [ "$n" -ge 1 ]; then
+      return 0
+    fi
+    sleep 2
+  done
+  dump_releases
+  fail "release $tag (draft=$draft) was not listed within 40s"
+}
+
+# settle gives eventually consistent listings time to show a possible duplicate.
+settle() { sleep "${1:-8}"; }
