@@ -128,19 +128,24 @@ dump_releases() {
     --jq '.[] | "id=\(.id) tag=\(.tag_name) draft=\(.draft) created=\(.created_at)"' >&2 || true
 }
 
-# wait_release_published <tag>
-# GitHub's release listing is eventually consistent for a short time after a release
-# is published. Wait until it shows the published release before asserting on it.
-wait_release_published() {
-  local tag="$1" i n
+# wait_release_listed <tag> <draft: true|false>
+# GitHub's release listing is eventually consistent for a few seconds after a release
+# is created or published, and relctl's idempotency check reads that listing. Wait until
+# the listing shows the expected state before the next relctl run, so that the test
+# checks relctl and not the propagation delay.
+wait_release_listed() {
+  local tag="$1" draft="$2" i n
   for i in $(seq 1 20); do
     n=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
-      --jq "[.[] | select(.tag_name == \"$tag\" and .draft == false)] | length" | awk '{s+=$1} END {print s+0}')
+      --jq "[.[] | select(.tag_name == \"$tag\" and .draft == $draft)] | length" | awk '{s+=$1} END {print s+0}')
     if [ "$n" -ge 1 ]; then
       return 0
     fi
     sleep 2
   done
   dump_releases
-  fail "release $tag was not listed as published within 40s"
+  fail "release $tag (draft=$draft) was not listed within 40s"
 }
+
+# settle gives eventually consistent listings time to show a possible duplicate.
+settle() { sleep "${1:-8}"; }
