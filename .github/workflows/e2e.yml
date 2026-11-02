@@ -1,0 +1,55 @@
+name: End-to-end
+
+on:
+  workflow_dispatch:
+    inputs:
+      relctl-version:
+        description: "relctl version to test (e.g. '2.6.0' or 'latest')"
+        default: "latest"
+        required: false
+        type: string
+      scenario:
+        description: "Only run scenarios whose name contains this text (empty = all)"
+        default: ""
+        required: false
+        type: string
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Monday 03:17 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Scenarios rewrite the sandbox: never run two at once.
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+jobs:
+  scripts:
+    name: Script self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: scripts/test-lib.sh
+
+  e2e:
+    name: Scenarios
+    runs-on: ubuntu-latest
+    needs: [scripts]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install relctl
+        uses: layer87-labs/relctl-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          relctl-version: ${{ inputs.relctl-version || 'latest' }}
+
+      - name: Run scenarios
+        run: scripts/run-all.sh "${{ inputs.scenario }}"
+        env:
+          # A dedicated token (secret E2E_TOKEN) is preferred; the workflow token works
+          # if the repository allows GitHub Actions to create and approve pull requests.
+          GH_TOKEN: ${{ secrets.E2E_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.E2E_TOKEN || secrets.GITHUB_TOKEN }}
