@@ -45,9 +45,14 @@ if [ "$(release_count 1.0.0)" != "1" ]; then dump_releases; fi
 assert_eq "$(release_count 1.0.0)" "1" "releases for 1.0.0 after a repeated run"
 
 # 4. publish, then run again: still nothing new
-(cd "$SANDBOX_DIR" && relctl release publish --release-id "$id" --release-branch "$SANDBOX_BRANCH" > /dev/null)
+asset="$(mktemp -d)/app.bin"
+head -c 1000 /dev/urandom > "$asset"
+(cd "$SANDBOX_DIR" && relctl release publish --release-id "$id" --release-branch "$SANDBOX_BRANCH" --asset "file=$asset" > /dev/null)
 sandbox_sync
 wait_release_listed 1.0.0 false
+body=$(gh api "repos/${GITHUB_REPOSITORY}/releases/$id" --jq .body)
+assert_match "$body" "first release notes" "changelog notes survive publishing"
+assert_match "$body" "\\| File \\| Size \\| SHA-256 \\|" "assets are appended as a table"
 create > /dev/null || fail "run after publishing must succeed"
 settle
 count=$(release_count 1.0.0)
