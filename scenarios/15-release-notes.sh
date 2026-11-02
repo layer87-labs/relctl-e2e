@@ -53,6 +53,9 @@ assert_match "$body" "visible in the release notes" "notes survive publishing"
 assert_match "$body" "### Assets" "assets heading"
 assert_match "$body" "\| File \| Size \| SHA-256 \|" "assets are a table"
 assert_match "$body" "app\.bin" "asset name in the table"
+if [[ "$body" == *"untagged-"* ]]; then fail "the asset links must point to the final tag, not to a draft address: $body"; fi
+log "ok: asset links point to the tag"
+assert_match "$body" "releases/download/$(echo "$out" | parse_version)/app\.bin" "asset link names the tag"
 assert_match "$body" "$sum" "asset checksum in the table"
 
 # 4. a text given with --body is never replaced by generated notes
