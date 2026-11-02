@@ -36,7 +36,10 @@ fi
 if [[ "$out" == *"panic"* || "$out" == *"nil pointer"* ]]; then fail "relctl crashed: $out"; fi
 log "ok: no crash without a connection"
 
-# 3. connect, then everything works - with GitLab CI variables and without any
+# 3. connect, then everything works. relctl refuses to leave the connection file unprotected:
+# it must be listed in .gitignore (as a line of its own).
+printf '.awesomerc.yaml\n' > "$SANDBOX_DIR/.gitignore"
+# connect, then everything works - with GitLab CI variables and without any
 out=$(clean relctl connect github --server https://github.com --repository "$GITHUB_REPOSITORY" --token "$GH_TOKEN") \
   || { echo "$out" >&2; fail "relctl connect github failed"; }
 [ -f "$SANDBOX_DIR/.awesomerc.yaml" ] || fail "the connection file was not written"
