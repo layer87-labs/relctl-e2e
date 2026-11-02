@@ -36,6 +36,7 @@ out=$(forward) || { echo "$out" >&2; fail "repeated forward failed"; }
 assert_match "$out" "nothing to forward" "repeated run"
 
 # 4. both moved on (diverged): a pull request is opened, once
+git -C "$SANDBOX_DIR" fetch --quiet origin dev   # dev was moved by the fast-forward above
 git -C "$SANDBOX_DIR" checkout --quiet -B dev-work origin/dev
 echo "dev change" >> "$SANDBOX_DIR/dev.txt"
 git -C "$SANDBOX_DIR" add dev.txt
