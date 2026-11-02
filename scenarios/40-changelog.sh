@@ -53,7 +53,13 @@ wait_release_listed 1.0.0 false
 body=$(gh api "repos/${GITHUB_REPOSITORY}/releases/$id" --jq .body)
 assert_match "$body" "first release notes" "changelog notes survive publishing"
 assert_match "$body" "\\| File \\| Size \\| SHA-256 \\|" "assets are appended as a table"
+# a published release must not hand out an id: a pipeline would build and upload into it
+rm -f "$SANDBOX_DIR/relctl.env"
 create > /dev/null || fail "run after publishing must succeed"
+if [ -f "$SANDBOX_DIR/relctl.env" ] && grep -q "RELCTL_RELEASE_ID" "$SANDBOX_DIR/relctl.env"; then
+  fail "a published release must not export RELCTL_RELEASE_ID"
+fi
+log "ok: no release id for a published release"
 settle
 count=$(release_count 1.0.0)
 if [ "$count" != "1" ]; then dump_releases; fi
