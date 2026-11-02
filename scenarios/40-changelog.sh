@@ -44,6 +44,9 @@ assert_eq "$(release_count 1.0.0)" "1" "releases for 1.0.0 after a repeated run"
 # 4. publish, then run again: still nothing new
 (cd "$SANDBOX_DIR" && relctl release publish --release-id "$id" --release-branch "$SANDBOX_BRANCH" > /dev/null)
 sandbox_sync
+wait_release_published 1.0.0
 create > /dev/null || fail "run after publishing must succeed"
-assert_eq "$(release_count 1.0.0)" "1" "releases for 1.0.0 after publishing and a repeated run"
+count=$(release_count 1.0.0)
+if [ "$count" != "1" ]; then dump_releases; fi
+assert_eq "$count" "1" "releases for 1.0.0 after publishing and a repeated run"
 log "changelog scenario passed"

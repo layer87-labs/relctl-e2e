@@ -119,3 +119,26 @@ release_count() {
   gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq "[.[] | select(.tag_name == \"$1\")] | length" \
     | awk '{s+=$1} END {print s+0}'
 }
+
+# dump_releases prints all releases (draft or published) for diagnosis.
+dump_releases() {
+  gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+    --jq '.[] | "id=\(.id) tag=\(.tag_name) draft=\(.draft) created=\(.created_at)"' >&2 || true
+}
+
+# wait_release_published <tag>
+# GitHub's release listing is eventually consistent for a short time after a release
+# is published. Wait until it shows the published release before asserting on it.
+wait_release_published() {
+  local tag="$1" i n
+  for i in $(seq 1 20); do
+    n=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+      --jq "[.[] | select(.tag_name == \"$tag\" and .draft == false)] | length" | awk '{s+=$1} END {print s+0}')
+    if [ "$n" -ge 1 ]; then
+      return 0
+    fi
+    sleep 2
+  done
+  dump_releases
+  fail "release $tag was not listed as published within 40s"
+}
