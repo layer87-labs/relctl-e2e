@@ -65,6 +65,22 @@ sandbox_sync() {
   git -C "$SANDBOX_DIR" reset --quiet --hard "origin/$SANDBOX_BRANCH"
 }
 
+# merge_with_retry <pr> <title>
+# GitHub computes the mergeability of a new pull request asynchronously; merging right
+# after creation can fail with "Base branch was modified". Retry a few times.
+merge_with_retry() {
+  local pr="$1" title="$2" i
+  for i in 1 2 3 4 5 6; do
+    if gh pr merge "$pr" --squash --delete-branch --subject "$title" --body "" > /dev/null 2> /tmp/merge.err; then
+      return 0
+    fi
+    log "merge of PR #$pr not possible yet ($(head -c 120 /tmp/merge.err)), retry $i/6"
+    sleep 4
+  done
+  cat /tmp/merge.err >&2
+  fail "could not merge PR #$pr"
+}
+
 # open_and_merge <branch> <title> [comment...]
 # Creates a commit on a topic branch, opens a pull request against the sandbox
 # branch, posts the given comments, squash-merges it and syncs the sandbox.
@@ -83,7 +99,7 @@ open_and_merge() {
   for c in "$@"; do
     gh pr comment "$pr" --body "$c" > /dev/null
   done
-  gh pr merge "$pr" --squash --delete-branch --subject "$title" --body "" > /dev/null
+  merge_with_retry "$pr" "$title"
   sandbox_sync
   log "merged PR #$pr ($branch) at $(git -C "$SANDBOX_DIR" rev-parse --short HEAD)"
 }
