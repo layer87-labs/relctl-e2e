@@ -8,6 +8,11 @@ on:
         default: "latest"
         required: false
         type: string
+      relctl-ref:
+        description: "Build relctl from this ref of layer87-labs/relctl (branch, tag or SHA) instead of installing a release. Tests a pull request before it is released."
+        default: ""
+        required: false
+        type: string
       scenario:
         description: "Only run scenarios whose name contains this text (empty = all)"
         default: ""
@@ -41,10 +46,32 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install relctl
+        if: ${{ inputs.relctl-ref == '' }}
         uses: layer87-labs/relctl-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           relctl-version: ${{ inputs.relctl-version || 'latest' }}
+
+      - name: Build relctl from source
+        if: ${{ inputs.relctl-ref != '' }}
+        uses: actions/checkout@v6
+        with:
+          repository: layer87-labs/relctl
+          ref: ${{ inputs.relctl-ref }}
+          path: relctl-src
+
+      - name: Install built relctl
+        if: ${{ inputs.relctl-ref != '' }}
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: relctl-src/go.mod
+
+      - name: Compile relctl
+        if: ${{ inputs.relctl-ref != '' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/relctl-bin"
+          (cd relctl-src && go build -o "$RUNNER_TEMP/relctl-bin/relctl" ./cmd/relctl)
+          echo "$RUNNER_TEMP/relctl-bin" >> "$GITHUB_PATH"
 
       - name: Run scenarios
         run: scripts/run-all.sh "${{ inputs.scenario }}"

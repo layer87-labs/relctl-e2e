@@ -32,12 +32,15 @@ scenarios/            one script per flow
 | `20-conventional-commits` | Flow 2: bump from Conventional Commit titles of squash-merged pull requests, including `!` |
 | `30-calver` | Flow 2: `YYYYMM.D.N`, `N` increments within a day |
 | `40-changelog` | Flow 3: version and notes from `CHANGELOG.md`, undated heading refused, idempotent release |
+| `60-release-candidates` | Flow 3 on a development branch: `--prerelease` numbers `1.0.0-rc.1…3` (marked as prerelease), the release, `latest` is the release, no candidate for an already released version |
 | `50-awesome-ci-compat` | `RELCTL_LEGACY_ACI_ENV=true` exports `ACI_*` aliases, and not without the switch |
 
 ## Running
 
 Run the **End-to-end** workflow (Actions → *End-to-end* → *Run workflow*). Inputs: the relctl
-version to test (`latest` by default) and an optional scenario filter. It also runs weekly.
+version to test (`latest` by default), `relctl-ref` to build relctl from a branch, tag or SHA of
+`layer87-labs/relctl` instead (tests a pull request before it is released), and an optional scenario
+filter. It also runs weekly.
 
 Locally (needs `gh`, `git`, and `relctl` on the `PATH`):
 
