@@ -18,14 +18,21 @@ push_changelog() { # content, message
   sandbox_sync
 }
 
-# candidate <expected-version>: create and publish a candidate and check it.
+# candidate <candidate-version> <next-release> <latest-release>: create and publish a candidate
+# and check it, including what it exports: the candidate is RELCTL_VERSION, the release it is
+# a candidate for is RELCTL_NEXT_VERSION, and the latest release is never a candidate.
 candidate() {
-  local expected="$1" out version id
-  out=$(cd "$SANDBOX_DIR" && relctl release create --prerelease --release-branch "$SANDBOX_BRANCH" 2>&1) \
+  local expected="$1" next="$2" latest="$3" out version id envf
+  envf="$(mktemp)"
+  out=$(cd "$SANDBOX_DIR" && GITHUB_ENV="$envf" GITHUB_OUTPUT="$envf.out" relctl release create --prerelease --release-branch "$SANDBOX_BRANCH" 2>&1) \
     || { echo "$out" >&2; fail "release create --prerelease failed"; }
   version=$(echo "$out" | parse_version)
   id=$(echo "$out" | parse_release_id)
   assert_eq "$version" "$expected" "candidate version"
+  assert_eq "$(exported RELCTL_VERSION "$envf")" "$expected" "RELCTL_VERSION of a candidate"
+  assert_eq "$(exported RELCTL_NEXT_VERSION "$envf")" "$next" "RELCTL_NEXT_VERSION is the release, not the candidate"
+  assert_eq "$(exported RELCTL_LATEST_VERSION "$envf")" "$latest" "RELCTL_LATEST_VERSION is a published release"
+  assert_eq "$(exported RELCTL_PRERELEASE "$envf")" "true" "RELCTL_PRERELEASE of a candidate"
   (cd "$SANDBOX_DIR" && relctl release publish --release-id "$id" --release-branch "$SANDBOX_BRANCH" > /dev/null)
   sandbox_sync
   wait_release_listed "$expected" false
@@ -35,9 +42,10 @@ candidate() {
 # an upcoming version on the development branch
 push_changelog $'# Changelog\n\n## 1.0.0\n\n- upcoming notes' "docs: start 1.0.0"
 
-candidate 1.0.0-rc.1
-candidate 1.0.0-rc.2
-candidate 1.0.0-rc.3
+# the sandbox starts with the published release 0.1.0
+candidate 1.0.0-rc.1 1.0.0 0.1.0
+candidate 1.0.0-rc.2 1.0.0 0.1.0
+candidate 1.0.0-rc.3 1.0.0 0.1.0
 
 # release it: date the heading, create and publish the real release
 today="$(date -u +%F)"
@@ -59,4 +67,8 @@ out=$(cd "$SANDBOX_DIR" && relctl release create --prerelease --release-branch "
 assert_match "$out" "already released" "message for an already released version"
 settle
 assert_eq "$(release_count 1.0.0-rc.4)" "0" "candidates after the release"
+
+# the next cycle: the latest release is now 1.0.0, and the first candidate of 1.1.0 is rc.1
+push_changelog $'# Changelog\n\n## 1.1.0\n\n- upcoming notes\n\n## 1.0.0 — '"$today"$'\n\n- upcoming notes' "docs: start 1.1.0"
+candidate 1.1.0-rc.1 1.1.0 1.0.0
 log "release candidate scenario passed"
