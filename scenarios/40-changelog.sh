@@ -53,13 +53,15 @@ wait_release_listed 1.0.0 false
 body=$(gh api "repos/${GITHUB_REPOSITORY}/releases/$id" --jq .body)
 assert_match "$body" "first release notes" "changelog notes survive publishing"
 assert_match "$body" "\\| File \\| Size \\| SHA-256 \\|" "assets are appended as a table"
-# a published release must not hand out an id: a pipeline would build and upload into it
-rm -f "$SANDBOX_DIR/relctl.env"
-create > /dev/null || fail "run after publishing must succeed"
-if [ -f "$SANDBOX_DIR/relctl.env" ] && grep -q "RELCTL_RELEASE_ID" "$SANDBOX_DIR/relctl.env"; then
-  fail "a published release must not export RELCTL_RELEASE_ID"
-fi
-log "ok: no release id for a published release"
+# a published release must not hand out an id: a pipeline would build and upload into it.
+# relctl runs inside GitHub Actions here and writes its variables to GITHUB_ENV, so the
+# variables of this one call are collected in a file of their own. RELCTL_VERSION is the
+# positive control: without it, "no id" could also mean "nothing was collected".
+envf="$(mktemp)"
+(cd "$SANDBOX_DIR" && GITHUB_ENV="$envf" GITHUB_OUTPUT="$envf.out" relctl release create --release-branch "$SANDBOX_BRANCH" > /dev/null 2>&1) \
+  || fail "run after publishing must succeed"
+assert_eq "$(exported RELCTL_VERSION "$envf")" "1.0.0" "the version of a published release is exported"
+assert_eq "$(exported RELCTL_RELEASE_ID "$envf")" "" "no release id for a published release"
 settle
 count=$(release_count 1.0.0)
 if [ "$count" != "1" ]; then dump_releases; fi
