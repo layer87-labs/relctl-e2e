@@ -129,6 +129,12 @@ release_publish() {
   echo "$version"
 }
 
+# exported <NAME> <file> prints the last value relctl exported for NAME to an env file.
+# Scenarios point GITHUB_ENV (and GITHUB_OUTPUT) of one relctl call to a fresh file and read
+# the variables back from it, because the scenarios run inside GitHub Actions where relctl
+# writes its variables there.
+exported() { grep -E "^$1=" "$2" 2> /dev/null | tail -1 | cut -d= -f2- || true; }
+
 # merge_sha prints the current head of the sandbox branch.
 merge_sha() { git -C "$SANDBOX_DIR" rev-parse HEAD; }
 
